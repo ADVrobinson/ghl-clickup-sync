@@ -1,104 +1,47 @@
-import { buildTaskName, buildDescription, buildCustomFields, determinePriority } from "./fieldMapper.js";
-import { findTaskByGHLId, createTask, updateTask, addComment } from "./clickupClient.js";
+import { buildDescription, buildCustomFields, determinePriority } from "./fieldMapper.js";
+import { findTaskByGHLId, createTask, updateTask } from "./clickupClient.js";
 
 const LIST_ID      = process.env.CLICKUP_LIST_ID;
 const GHL_ID_FIELD = process.env.CU_FIELD_GHL_ID;
 
-const STATUS_MAP = {
-  open: "To Do", won: "Won", lost: "Lost", abandoned: "Abandoned",
-};
-
 export async function handleGHLWebhook(payload) {
   if (!LIST_ID) throw new Error("CLICKUP_LIST_ID env var is not set");
-  const { type } = payload;
-  console.log(`🔄 Processing event: ${type}`);
-  switch (type) {
-    case "ContactCreate":         return handleContactCreate(payload);
-    case "ContactUpdate":         return handleContactUpdate(payload);
-    case "OpportunityCreate":     return handleOpportunityCreate(payload);
-    case "OpportunityUpdate":
-    case "OpportunityStageUpdate":return handleOpportunityUpdate(payload);
-    case "NoteCreate":            return handleNoteCreate(payload);
-    default:
-      console.log(`ℹ️  Unhandled event type: ${type}`);
-      return { skipped: true, type };
-  }
-}
 
-async function handleContactCreate(payload) {
-  const ghlId = payload.contact?.id || payload.contactId;
-  const existing = await findTaskByGHLId(LIST_ID, ghlId, GHL_ID_FIELD);
-  if (existing) return { action: "skipped", taskId: existing.id };
-  const task = await createTask(LIST_ID, {
-    name: buildTaskName(payload),
-    description: buildDescription(payload),
+  const contactId = payload.contactId || payload.contact?.id || payload.id;
+  const firstName = payload.firstName || payload.contact?.firstName || "";
+  const lastName  = payload.lastName  || payload.contact?.lastName  || "";
+  const email     = payload.email     || payload.contact?.email     || "";
+  const phone     = payload.phone     || payload.contact?.phone     || "";
+  const company   = payload.companyName || payload.businessName || payload.contact?.companyName || "";
+  const value     = payload.monetaryValue || payload.opportunityValue || payload.value || 0;
+  const oppName   = payload.name || `${firstName} ${lastName}`.trim();
+
+  console.log(`🏆 Won deal: ${oppName} | Contact: ${contactId} | Value: $${value}`);
+
+  const normalizedPayload = {
+    contact: { id: contactId, firstName, lastName, email, phone, companyName: company },
+    opportunity: { name: oppName, monetaryValue: value, status: "won" },
+    ...payload
+  };
+
+  const taskPayload = {
+    name: `${firstName} ${lastName}`.trim() || oppName || "New Won Client",
+    description: buildDescription(normalizedPayload),
+    priority: determinePriority(normalizedPayload),
     status: "To Do",
-    priority: 4,
-    custom_fields: buildCustomFields(payload),
-    tags: ["ghl-lead"],
-  });
-  console.log(`✅ Created task: ${task.id}`);
-  return { action: "created", taskId: task.id };
-}
+    custom_fields: buildCustomFields(normalizedPayload, "closed_deal"),
+    tags: ["ghl-won"],
+  };
 
-async function handleContactUpdate(payload) {
-  const ghlId = payload.contact?.id || payload.contactId;
-  const existing = await findTaskByGHLId(LIST_ID, ghlId, GHL_ID_FIELD);
-  if (!existing) return handleContactCreate(payload);
-  await updateTask(existing.id, {
-    name: buildTaskName(payload),
-    description: buildDescription(payload),
-    custom_fields: buildCustomFields(payload),
-  });
-  console.log(`✅ Updated task: ${existing.id}`);
-  return { action: "updated", taskId: existing.id };
-}
+  const existing = await findTaskByGHLId(LIST_ID, contactId, GHL_ID_FIELD);
 
-async function handleOpportunityCreate(payload) {
-  const ghlId = payload.contact?.id || payload.contactId;
-  const existing = await findTaskByGHLId(LIST_ID, ghlId, GHL_ID_FIELD);
-  const opp = payload.opportunity || {};
   if (existing) {
-    await updateTask(existing.id, {
-      name: buildTaskName(payload),
-      description: buildDescription(payload),
-      priority: determinePriority(payload),
-      status: STATUS_MAP[opp.status] || "To Do",
-      custom_fields: buildCustomFields(payload),
-    });
-    return { action: "upgraded", taskId: existing.id };
+    await updateTask(existing.id, taskPayload);
+    console.log(`✅ Updated existing task: ${existing.id}`);
+    return { action: "updated", taskId: existing.id };
   }
-  const task = await createTask(LIST_ID, {
-    name: buildTaskName(payload),
-    description: buildDescription(payload),
-    priority: determinePriority(payload),
-    status: "To Do",
-    custom_fields: buildCustomFields(payload),
-    tags: ["ghl-opportunity"],
-  });
-  console.log(`✅ Created opportunity task: ${task.id}`);
+
+  const task = await createTask(LIST_ID, taskPayload);
+  console.log(`✅ Created new task: ${task.id} — ${task.name}`);
   return { action: "created", taskId: task.id };
-}
-
-async function handleOpportunityUpdate(payload) {
-  const ghlId = payload.contact?.id || payload.contactId;
-  const existing = await findTaskByGHLId(LIST_ID, ghlId, GHL_ID_FIELD);
-  if (!existing) return handleOpportunityCreate(payload);
-  const opp = payload.opportunity || {};
-  await updateTask(existing.id, {
-    description: buildDescription(payload),
-    priority: determinePriority(payload),
-    status: STATUS_MAP[opp.status] || undefined,
-    custom_fields: buildCustomFields(payload),
-  });
-  return { action: "updated", taskId: existing.id };
-}
-
-async function handleNoteCreate(payload) {
-  const ghlId = payload.contactId || payload.contact?.id;
-  const note  = payload.note || payload.body || payload.text || "New note from GHL";
-  const existing = await findTaskByGHLId(LIST_ID, ghlId, GHL_ID_FIELD);
-  if (!existing) return { action: "skipped", reason: "no matching task" };
-  await addComment(existing.id, `📝 **GHL Note:**\n\n${note}`);
-  return { action: "note_added", taskId: existing.id };
 }
