@@ -19,10 +19,10 @@ app.get("/", (_req, res) => res.json({ status: "GHL → ClickUp sync running" })
 app.post("/webhook/ghl", async (req, res) => {
   try {
     if (!verifySignature(req)) {
-      console.warn("⚠️  Invalid webhook signature");
       return res.status(401).json({ error: "Invalid signature" });
     }
-    console.log("📥 GHL event received:", req.body?.type || "unknown");
+    // Log the FULL payload so we can see the exact structure GHL sends
+    console.log("📥 FULL GHL PAYLOAD:", JSON.stringify(req.body, null, 2));
     const result = await handleGHLWebhook(req.body);
     res.json({ success: true, result });
   } catch (err) {
