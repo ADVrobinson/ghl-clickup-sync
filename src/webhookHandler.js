@@ -28,7 +28,7 @@ export async function handleGHLWebhook(payload) {
     name: `${firstName} ${lastName}`.trim() || oppName || "New Won Client",
     description: buildDescription(normalizedPayload),
     priority: determinePriority(normalizedPayload),
-    status: "To Do",
+    status: "Open",
     custom_fields: buildCustomFields(normalizedPayload, "closed_deal"),
     tags: ["ghl-won"],
   };
