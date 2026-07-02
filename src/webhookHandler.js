@@ -7,32 +7,33 @@ const GHL_ID_FIELD = process.env.CU_FIELD_GHL_ID;
 export async function handleGHLWebhook(payload) {
   if (!LIST_ID) throw new Error("CLICKUP_LIST_ID env var is not set");
 
-  // GHL sends fields at root level with snake_case names
   const contactId = payload.contact_id || payload.contactId || payload.contact?.id;
   const firstName = payload.first_name || payload.firstName || payload.contact?.firstName || "";
   const lastName  = payload.last_name  || payload.lastName  || payload.contact?.lastName  || "";
   const fullName  = payload.full_name  || `${firstName} ${lastName}`.trim();
-  const email     = payload.email      || payload.contact?.email     || "";
-  const phone     = payload.phone      || payload.contact?.phone     || "";
+  const email     = payload.email      || payload.contact?.email || "";
+  const phone     = payload.phone      || payload.contact?.phone || "";
   const company   = payload.company_name || payload.companyName || payload.contact?.companyName || "";
-  const value     = payload.monetary_value || payload.monetaryValue || payload.opportunity?.monetaryValue || 0;
+
+  // Opportunity fields — try every possible field name GHL might use
+  const value     = payload.value || payload.opportunity_value || payload.monetary_value || payload.monetaryValue || 0;
+  const pipeline  = payload.pipeline_name || payload.pipelineName || payload.pipeline || "";
+  const stage     = payload.pipeline_stage || payload.pipelineStageName || payload.stage || "";
+  const owner     = payload.owner || payload.assigned_to || payload.assignedTo || payload.opportunity?.assignedTo || "";
   const oppName   = payload.opportunity_name || payload.name || fullName;
 
-  console.log(`🏆 Won deal: ${fullName} | Contact: ${contactId} | Value: $${value}`);
+  console.log(`🏆 Won deal: ${fullName} | Contact: ${contactId} | Value: $${value} | Owner: ${owner} | Pipeline: ${pipeline} | Stage: ${stage}`);
 
   const normalizedPayload = {
-    contact: { 
-      id: contactId, 
-      firstName, 
-      lastName, 
-      email, 
-      phone, 
-      companyName: company 
-    },
+    contact: { id: contactId, firstName, lastName, email, phone, companyName: company },
     opportunity: { 
       name: oppName, 
-      monetaryValue: value, 
-      status: "won" 
+      monetaryValue: value,
+      value: value,
+      status: "won",
+      pipelineName: pipeline,
+      pipelineStageName: stage,
+      assignedTo: owner,
     },
   };
 
