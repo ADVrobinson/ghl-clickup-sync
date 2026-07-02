@@ -18,11 +18,18 @@ app.get("/", (_req, res) => res.json({ status: "GHL → ClickUp sync running" })
 
 app.post("/webhook/ghl", async (req, res) => {
   try {
-    if (!verifySignature(req)) {
-      return res.status(401).json({ error: "Invalid signature" });
-    }
-    // Log the FULL payload so we can see the exact structure GHL sends
-    console.log("📥 FULL GHL PAYLOAD:", JSON.stringify(req.body, null, 2));
+    if (!verifySignature(req)) return res.status(401).json({ error: "Invalid signature" });
+
+    // Log ONLY the top-level keys and their values
+    console.log("📋 TOP-LEVEL FIELDS:");
+    Object.entries(req.body).forEach(([key, val]) => {
+      if (typeof val !== "object") {
+        console.log(`  ${key}: ${val}`);
+      } else {
+        console.log(`  ${key}: [object]`);
+      }
+    });
+
     const result = await handleGHLWebhook(req.body);
     res.json({ success: true, result });
   } catch (err) {
