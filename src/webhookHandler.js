@@ -16,9 +16,9 @@ export async function handleGHLWebhook(payload) {
   const company   = payload.company_name || payload.companyName || payload.contact?.companyName || "";
 
   // Opportunity fields — try every possible field name GHL might use
-  const value     = payload.value || payload.opportunity_value || payload.monetary_value || payload.monetaryValue || 0;
+  const value     = payload.lead_value || payload.value || payload.opportunity_value || payload.monetary_value || payload.monetaryValue || 0;
   const pipeline  = payload.pipeline_name || payload.pipelineName || payload.pipeline || "";
-  const stage     = payload.pipeline_stage || payload.pipelineStageName || payload.stage || "";
+  const stage     = payload.pipleline_stage || payload.pipeline_stage || payload.pipelineStageName || payload.stage || "";
   const owner     = payload.owner || payload.assigned_to || payload.assignedTo || payload.opportunity?.assignedTo || "";
   const oppName   = payload.opportunity_name || payload.name || fullName;
 
