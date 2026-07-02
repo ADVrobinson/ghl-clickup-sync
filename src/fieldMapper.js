@@ -1,17 +1,15 @@
 const FIELDS = {
-  ghlContactId:  process.env.CU_FIELD_GHL_ID,
-  email:         process.env.CU_FIELD_EMAIL,
-  phone:         process.env.CU_FIELD_PHONE,
-  businessName:  process.env.CU_FIELD_BUSINESS_NAME,
-  companyName:   process.env.CU_FIELD_COMPANY_NAME,
-  totalContract: process.env.CU_FIELD_TOTAL_CONTRACT,
-  payment1:      process.env.CU_FIELD_PAYMENT1,
-  payment2:      process.env.CU_FIELD_PAYMENT2,
-  payment3:      process.env.CU_FIELD_PAYMENT3,
-  notes:         process.env.CU_FIELD_NOTES,
-  clientStatus:  process.env.CU_FIELD_CLIENT_STATUS,
-  pmAssigned:    process.env.CU_FIELD_PM_ASSIGNED,
-  tags:          process.env.CU_FIELD_TAGS,
+  ghlContactId: process.env.CU_FIELD_GHL_ID,
+  email:        process.env.CU_FIELD_EMAIL,
+  phone:        process.env.CU_FIELD_PHONE,
+  businessName: process.env.CU_FIELD_BUSINESS_NAME,
+  companyName:  process.env.CU_FIELD_COMPANY_NAME,
+  value:        process.env.CU_FIELD_VALUE,
+  closer:       process.env.CU_FIELD_CLOSER,
+  notes:        process.env.CU_FIELD_NOTES,
+  clientStatus: process.env.CU_FIELD_CLIENT_STATUS,
+  pmAssigned:   process.env.CU_FIELD_PM_ASSIGNED,
+  tags:         process.env.CU_FIELD_TAGS,
 };
 
 export const CLIENT_STATUS = {
@@ -24,6 +22,15 @@ export const CLIENT_STATUS = {
   "cancelled":       "90bf711b-f4ef-455b-8853-f1976ef53a12",
   "paused":          "053463e0-b94c-4a0d-a6fe-fe433509f988",
   "completed":       "edc96b0e-2e5d-42b1-9698-f3e1a1e0db8e",
+};
+
+// GHL assigned user name → ClickUp Closer dropdown option ID
+export const CLOSER_OPTIONS = {
+  "rob ramirez":  "269cfc54-3827-4940-ae33-258038230939",
+  "lucas west":   "4a620097-d525-4347-b55a-912c83c2c9d8",
+  "john cantu":   "4cb9e56f-1ecf-42e1-9bda-fec8a81592c2",
+  "jt granato":   "c3f1af77-22f3-4922-a8c8-c5fd5cf8d314",
+  "leaf vance":   "882ddb9a-4c87-4129-994e-43f5b945f965",
 };
 
 export const PM_OPTIONS = {
@@ -71,21 +78,29 @@ export function buildDescription(ghlData) {
   return lines.join("\n");
 }
 
-export function buildCustomFields(ghlData) {
+export function buildCustomFields(ghlData, forceStatus) {
   const c   = ghlData.contact || ghlData;
   const opp = ghlData.opportunity || {};
-  const statusKey = opp.status?.toLowerCase().replace(/\s+/g, "_");
+
+  const statusKey    = forceStatus || opp.status?.toLowerCase().replace(/\s+/g, "_");
   const clientStatusId = CLIENT_STATUS[statusKey] || null;
+
+  // Map assigned user name → Closer dropdown option ID
+  const assignedName = (opp.assignedTo || c.assignedTo || "").toLowerCase().trim();
+  const closerId     = CLOSER_OPTIONS[assignedName] || null;
+
   const raw = [
-    [FIELDS.ghlContactId,  c.id || ghlData.contactId],
-    [FIELDS.email,         c.email],
-    [FIELDS.phone,         c.phone || c.mobilePhone],
-    [FIELDS.businessName,  c.companyName || c.company],
-    [FIELDS.companyName,   c.companyName || c.company],
-    [FIELDS.totalContract, opp.monetaryValue || opp.value],
-    [FIELDS.notes,         ghlData.notes || ghlData.note],
-    [FIELDS.clientStatus,  clientStatusId],
+    [FIELDS.ghlContactId, c.id || ghlData.contactId],
+    [FIELDS.email,        c.email],
+    [FIELDS.phone,        c.phone || c.mobilePhone],
+    [FIELDS.businessName, c.companyName || c.company],
+    [FIELDS.companyName,  c.companyName || c.company],
+    [FIELDS.value,        opp.monetaryValue || opp.value],
+    [FIELDS.notes,        ghlData.notes || ghlData.note],
+    [FIELDS.clientStatus, clientStatusId],
+    [FIELDS.closer,       closerId],
   ];
+
   return raw
     .filter(([id, val]) => id && val !== undefined && val !== null && val !== "")
     .map(([id, val]) => ({ id, value: String(val) }));
