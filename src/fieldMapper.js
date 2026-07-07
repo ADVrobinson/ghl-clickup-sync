@@ -1,15 +1,17 @@
 const FIELDS = {
-  ghlContactId: process.env.CU_FIELD_GHL_ID,
-  email:        process.env.CU_FIELD_EMAIL,
-  phone:        process.env.CU_FIELD_PHONE,
-  businessName: process.env.CU_FIELD_BUSINESS_NAME,
-  companyName:  process.env.CU_FIELD_COMPANY_NAME,
-  value:        process.env.CU_FIELD_VALUE,
-  closer:       process.env.CU_FIELD_CLOSER,
-  notes:        process.env.CU_FIELD_NOTES,
-  clientStatus: process.env.CU_FIELD_CLIENT_STATUS,
-  pmAssigned:   process.env.CU_FIELD_PM_ASSIGNED,
-  tags:         process.env.CU_FIELD_TAGS,
+  ghlContactId:  process.env.CU_FIELD_GHL_ID,
+  email:         process.env.CU_FIELD_EMAIL,
+  phone:         process.env.CU_FIELD_PHONE,
+  businessName:  process.env.CU_FIELD_BUSINESS_NAME,
+  companyName:   process.env.CU_FIELD_COMPANY_NAME,
+  value:         process.env.CU_FIELD_VALUE,
+  closer:        process.env.CU_FIELD_CLOSER,
+  notes:         process.env.CU_FIELD_NOTES,
+  clientStatus:  process.env.CU_FIELD_CLIENT_STATUS,
+  pmAssigned:    process.env.CU_FIELD_PM_ASSIGNED,
+  tags:          process.env.CU_FIELD_TAGS,
+  contractTerm:  process.env.CU_FIELD_CONTRACT_TERM,
+  closerNotes:   process.env.CU_FIELD_CLOSER_NOTES,
 };
 
 export const CLIENT_STATUS = {
@@ -24,7 +26,6 @@ export const CLIENT_STATUS = {
   "completed":       "edc96b0e-2e5d-42b1-9698-f3e1a1e0db8e",
 };
 
-// GHL assigned user name → ClickUp Closer dropdown option ID
 export const CLOSER_OPTIONS = {
   "rob ramirez":  "269cfc54-3827-4940-ae33-258038230939",
   "lucas west":   "4a620097-d525-4347-b55a-912c83c2c9d8",
@@ -42,18 +43,6 @@ export const PM_OPTIONS = {
   "patricia": "8ee1b879-23d0-4bb5-9e3a-09d4ba2df798",
 };
 
-export function buildTaskName(ghlData) {
-  const isOpp = ghlData.type === "OpportunityCreate" || ghlData.type === "OpportunityUpdate";
-  if (isOpp) {
-    const name = ghlData.opportunity?.name || ghlData.contact?.fullName || "Unnamed Opportunity";
-    return `[OPP] ${name}`;
-  }
-  const first = ghlData.contact?.firstName || ghlData.firstName || "";
-  const last  = ghlData.contact?.lastName  || ghlData.lastName  || "";
-  const full  = `${first} ${last}`.trim() || ghlData.contact?.email || "Unnamed Contact";
-  return `[LEAD] ${full}`;
-}
-
 export function buildDescription(ghlData) {
   const c   = ghlData.contact || ghlData;
   const opp = ghlData.opportunity || {};
@@ -68,9 +57,9 @@ export function buildDescription(ghlData) {
   ];
   if (opp.name) {
     lines.push("## Opportunity",
-      `- **Pipeline:** ${opp.pipelineName || opp.pipeline || "—"}`,
-      `- **Stage:** ${opp.pipelineStageName || opp.stage || "—"}`,
-      `- **Value:** $${opp.monetaryValue || opp.value || "0"}`,
+      `- **Pipeline:** ${opp.pipelineName || "—"}`,
+      `- **Stage:** ${opp.pipelineStageName || "—"}`,
+      `- **Value:** $${opp.monetaryValue || "0"}`,
       `- **Status:** ${opp.status || "—"}`, "");
   }
   if (ghlData.notes || ghlData.note) lines.push("## Notes", ghlData.notes || ghlData.note, "");
@@ -82,23 +71,23 @@ export function buildCustomFields(ghlData, forceStatus) {
   const c   = ghlData.contact || ghlData;
   const opp = ghlData.opportunity || {};
 
-  const statusKey    = forceStatus || opp.status?.toLowerCase().replace(/\s+/g, "_");
+  const statusKey      = forceStatus || opp.status?.toLowerCase().replace(/\s+/g, "_");
   const clientStatusId = CLIENT_STATUS[statusKey] || null;
-
-  // Map assigned user name → Closer dropdown option ID
-  const assignedName = (opp.assignedTo || c.assignedTo || "").toLowerCase().trim();
-  const closerId     = CLOSER_OPTIONS[assignedName] || null;
+  const assignedName   = (opp.assignedTo || c.assignedTo || "").toLowerCase().trim();
+  const closerId       = CLOSER_OPTIONS[assignedName] || null;
 
   const raw = [
-    [FIELDS.ghlContactId, c.id || ghlData.contactId],
-    [FIELDS.email,        c.email],
-    [FIELDS.phone,        c.phone || c.mobilePhone],
-    [FIELDS.businessName, c.companyName || c.company],
-    [FIELDS.companyName,  c.companyName || c.company],
-    [FIELDS.value,        opp.monetaryValue || opp.value],
-    [FIELDS.notes,        ghlData.notes || ghlData.note],
-    [FIELDS.clientStatus, clientStatusId],
-    [FIELDS.closer,       closerId],
+    [FIELDS.ghlContactId,  c.id || ghlData.contactId],
+    [FIELDS.email,         c.email],
+    [FIELDS.phone,         c.phone || c.mobilePhone],
+    [FIELDS.businessName,  c.companyName || c.company],
+    [FIELDS.companyName,   c.companyName || c.company],
+    [FIELDS.value,         opp.monetaryValue || opp.value],
+    [FIELDS.notes,         ghlData.notes || ghlData.note],
+    [FIELDS.clientStatus,  clientStatusId],
+    [FIELDS.closer,        closerId],
+    [FIELDS.contractTerm,  opp.contractTerm || ghlData.contract_term],
+    [FIELDS.closerNotes,   opp.closerNotes  || ghlData.closer_notes],
   ];
 
   return raw
