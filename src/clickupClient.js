@@ -91,3 +91,8 @@ export async function updateTask(taskId, payload) {
 export async function addComment(taskId, commentText) {
   return request("POST", `/task/${taskId}/comment`, { comment_text: commentText, notify_all: false });
 }
+
+// Custom fields can't be set via PUT /task — ClickUp needs one call per field
+export async function setCustomField(taskId, fieldId, value) {
+  return request("POST", `/task/${taskId}/field/${fieldId}`, { value });
+}
